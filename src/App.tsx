@@ -228,6 +228,55 @@ export const App: React.FC = () => {
     }
   };
 
+  // Background prefetch next ayah audio for seamless gapless playback
+  useEffect(() => {
+    if (currentPlayingAyah && isPlayingAudio && selectedReciter.format === "ayah") {
+      const currentSurahMeta = SURAHS_LIST.find((s) => s.number === currentPlayingAyah.surah);
+      if (currentSurahMeta && currentPlayingAyah.ayah < currentSurahMeta.numberOfAyahs) {
+        const nextUrl = getAyahAudioUrl(selectedReciter, currentPlayingAyah.surah, currentPlayingAyah.ayah + 1);
+        const imgPreload = new Audio();
+        imgPreload.src = nextUrl;
+        imgPreload.preload = "auto";
+      }
+    }
+  }, [currentPlayingAyah, isPlayingAudio, selectedReciter]);
+
+  // Global Keyboard Shortcuts (Space for Play/Pause, Left/Right for Ayah navigation, Esc to close panels)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input or textarea
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (isPlayingAudio) {
+          handlePauseAudio();
+        } else {
+          handleResumeAudio();
+        }
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        handleNextAyah();
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        handlePrevAyah();
+      } else if (e.code === "Escape") {
+        setIsSettingsOpen(false);
+        setIsTranslationsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlayingAudio, currentPlayingAyah]);
+
   // Bookmark Toggle
   const handleToggleBookmark = (
     surahNumber: number,
