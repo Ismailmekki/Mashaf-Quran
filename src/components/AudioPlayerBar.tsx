@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Play,
   Pause,
@@ -7,14 +7,11 @@ import {
   Volume2,
   VolumeX,
   Repeat,
-  Gauge,
-  UserCheck,
-  ChevronUp,
-  ChevronDown,
+  Search,
   X
 } from "lucide-react";
 import { Reciter } from "../types";
-import { getAyahAudioUrl, getSurahAudioUrl } from "../data/recitersData";
+import { getAyahAudioUrl } from "../data/recitersData";
 import { SURAHS_LIST } from "../data/surahsData";
 
 interface AudioPlayerBarProps {
@@ -53,6 +50,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   audioRef
 }) => {
   const [showReciterModal, setShowReciterModal] = useState(false);
+  const [modalSearch, setModalSearch] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -61,6 +59,18 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   const currentSurahMeta = currentPlaying
     ? SURAHS_LIST.find((s) => s.number === currentPlaying.surah)
     : null;
+
+  // Filtered reciters in modal
+  const filteredModalReciters = useMemo(() => {
+    if (!modalSearch.trim()) return reciters;
+    const q = modalSearch.toLowerCase().trim();
+    return reciters.filter(
+      (r) =>
+        r.name.includes(q) ||
+        r.englishName.toLowerCase().includes(q) ||
+        (r.riwayah && r.riwayah.includes(q))
+    );
+  }, [modalSearch, reciters]);
 
   // Sync repeat count
   useEffect(() => {
@@ -92,6 +102,17 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     } else {
       setRepeatCountRemaining(repeatTimes);
       onAudioEnded();
+    }
+  };
+
+  const handleAudioError = () => {
+    if (audioRef.current && currentPlaying) {
+      // Fallback gracefully to standard Alafasy audio if requested stream has an issue
+      const fallbackUrl = getAyahAudioUrl("Alafasy_128kbps", currentPlaying.surah, currentPlaying.ayah);
+      if (audioRef.current.src !== fallbackUrl) {
+        audioRef.current.src = fallbackUrl;
+        audioRef.current.play().catch(() => {});
+      }
     }
   };
 
@@ -135,6 +156,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleTimeUpdate}
         onEnded={handleAudioEnd}
+        onError={handleAudioError}
         preload="auto"
       />
 
@@ -256,12 +278,12 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
       {/* Reciter Selector Modal */}
       {showReciterModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1A202C] border border-[#C5A059]/40 w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
+          <div className="bg-[#1A202C] border border-[#C5A059]/40 w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-[#2D3748] flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-[#C5A059] uppercase font-mono tracking-widest block">Reciter Selection</span>
                 <h3 className="font-bold text-base text-white font-tajawal">
-                  اختر القارئ المفضل للتلاوة
+                  اختر القارئ المفضل ({reciters.length} قارئاً)
                 </h3>
               </div>
               <button
@@ -272,8 +294,22 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               </button>
             </div>
 
+            {/* Quick Search */}
+            <div className="p-3 border-b border-[#2D3748] bg-[#12161F]">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  placeholder="ابحث باسم القارئ (مثال: وديع اليمني، المنشاوي، المعيقلي)..."
+                  className="w-full py-2 pr-9 pl-3 bg-[#1A202C] border border-[#2D3748] focus:border-[#C5A059] text-xs text-stone-200 outline-none"
+                />
+                <Search className="w-3.5 h-3.5 text-[#C5A059] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
             <div className="p-3 overflow-y-auto space-y-2">
-              {reciters.map((reciter) => {
+              {filteredModalReciters.map((reciter) => {
                 const isSelected = selectedReciter.id === reciter.id;
                 return (
                   <div
@@ -289,8 +325,16 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
                     }`}
                   >
                     <div>
-                      <h4 className="font-bold text-sm font-tajawal">{reciter.name}</h4>
-                      <p className="text-xs text-stone-400 font-mono">{reciter.englishName}</p>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-sm font-tajawal">{reciter.name}</h4>
+                        {reciter.style === "mujawwad" && (
+                          <span className="text-[9px] px-1.5 py-0.2 bg-amber-950/60 text-amber-300 border border-amber-500/30">مجود</span>
+                        )}
+                        {reciter.style === "teacher" && (
+                          <span className="text-[9px] px-1.5 py-0.2 bg-indigo-950/60 text-indigo-300 border border-indigo-500/30">معلم</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-stone-400 font-mono mt-0.5">{reciter.riwayah || reciter.englishName}</p>
                     </div>
                     {isSelected && (
                       <span className="w-5 h-5 bg-[#C5A059] text-[#1A202C] font-bold flex items-center justify-center text-xs">

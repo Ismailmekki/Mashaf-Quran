@@ -149,7 +149,7 @@ export const App: React.FC = () => {
   // Audio Handlers
   const playAyah = (surahNumber: number, ayahNumberInSurah: number) => {
     setCurrentPlayingAyah({ surah: surahNumber, ayah: ayahNumberInSurah });
-    const audioUrl = getAyahAudioUrl(selectedReciter.serverFolder, surahNumber, ayahNumberInSurah);
+    const audioUrl = getAyahAudioUrl(selectedReciter, surahNumber, ayahNumberInSurah);
 
     if (audioRef.current) {
       audioRef.current.src = audioUrl;
@@ -158,8 +158,15 @@ export const App: React.FC = () => {
         .play()
         .then(() => setIsPlayingAudio(true))
         .catch((err) => {
-          console.warn("Audio play failed:", err);
-          setIsPlayingAudio(false);
+          console.warn("Audio play failed on initial stream:", err);
+          // Auto fallback to Alafasy EveryAyah if this specific ayah format fails
+          const fallbackUrl = getAyahAudioUrl("Alafasy_128kbps", surahNumber, ayahNumberInSurah);
+          if (audioRef.current && audioRef.current.src !== fallbackUrl) {
+            audioRef.current.src = fallbackUrl;
+            audioRef.current.play().then(() => setIsPlayingAudio(true)).catch(() => setIsPlayingAudio(false));
+          } else {
+            setIsPlayingAudio(false);
+          }
         });
     }
   };

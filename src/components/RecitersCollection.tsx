@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Mic,
   Play,
@@ -6,12 +6,12 @@ import {
   Check,
   Search,
   Volume2,
-  Sparkles,
-  Award,
-  Radio,
   BookOpen,
   MapPin,
-  Compass
+  Music,
+  Headphones,
+  GraduationCap,
+  Sparkles
 } from "lucide-react";
 import { Reciter } from "../types";
 import { RECITERS_LIST, getSurahAudioUrl } from "../data/recitersData";
@@ -36,12 +36,20 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
   const [previewAudioReciterId, setPreviewAudioReciterId] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+      }
+    };
+  }, [audioElement]);
+
   const categories = [
-    { id: "all", label: "جميع القراء (22)" },
-    { id: "murattal", label: "المصحف المرتل" },
-    { id: "mujawwad", label: "المصحف المجود والخاشع" },
+    { id: "all", label: `جميع القراء (${RECITERS_LIST.length})` },
     { id: "haramain", label: "أئمة الحرمين الشريفين" },
-    { id: "teacher", label: "المصحف المعلم (للتحفيظ)" }
+    { id: "murattal", label: "المصاحف المرتلة والتلاوات العذبة" },
+    { id: "mujawwad", label: "المصاحف المجودة والمحافل" },
+    { id: "teacher", label: "المصاحف المعلمة (للتحفيظ والتلقين)" }
   ];
 
   const filteredReciters = useMemo(() => {
@@ -103,7 +111,7 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 pb-28 space-y-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 pb-28 space-y-6">
       {/* Top Banner Header with Geometric Balance motif */}
       <div className="p-6 sm:p-8 bg-[#1A202C] border border-[#C5A059]/40 relative overflow-hidden shadow-xl text-center sm:text-right">
         <div className="absolute -right-16 -top-16 w-48 h-48 bg-geometric-hatch opacity-15 pointer-events-none" />
@@ -111,13 +119,13 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#12161F] border border-[#C5A059]/40 text-[#C5A059] text-[10px] font-mono uppercase tracking-widest mb-2">
               <Mic className="w-3.5 h-3.5 text-[#C5A059]" />
-              <span>مجموعة القراء والمشايخ</span>
+              <span>مكتبة القراء الكبرى (40 قارئاً معتمداً)</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white font-tajawal">
-              نخبة قراء العالم الإسلامي
+              نخبة قراء العالم الإسلامي والحرمين
             </h2>
-            <p className="text-xs sm:text-sm text-stone-400 mt-1 max-w-xl">
-              استمع لأعذب التلاوات برواية حفص عن عاصم، المصاحف المرتلة والمجودة والمعلمة وأئمة المسجد الحرام والنبوي
+            <p className="text-xs sm:text-sm text-stone-400 mt-1 max-w-2xl">
+              تلاوات صوتية نقية وعالية الجودة لكبار المشايخ وقراء الحرمين الشريفين، تشمل التلاوات الخاشعة (وديع اليمني، إسلام صبحي، هزاع البلوشي، خالد الجليل) والمصاحف المعلمة والمجودة.
             </p>
           </div>
 
@@ -128,12 +136,35 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
             </div>
             <div>
               <span className="text-[10px] text-stone-400 font-mono block">القارئ المعتمد حالياً:</span>
-              <h4 className="font-bold text-sm text-[#C5A059] font-tajawal truncate max-w-[150px]">
+              <h4 className="font-bold text-sm text-[#C5A059] font-tajawal truncate max-w-[160px]">
                 {selectedReciter.name}
               </h4>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Surah Selector for Sample Listening */}
+      <div className="p-3 bg-[#1A202C] border border-[#2D3748] flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2 text-stone-300">
+          <Headphones className="w-4 h-4 text-[#C5A059]" />
+          <span>سورة الاستماع التجريبي للعينة:</span>
+        </div>
+        <select
+          value={previewSurahNumber}
+          onChange={(e) => {
+            setPreviewSurahNumber(Number(e.target.value));
+            if (audioElement) audioElement.pause();
+            setPreviewAudioReciterId(null);
+          }}
+          className="bg-[#12161F] border border-[#2D3748] text-[#C5A059] font-bold px-3 py-1.5 outline-none cursor-pointer"
+        >
+          {SURAHS_LIST.map((s) => (
+            <option key={s.number} value={s.number}>
+              سورة {s.name} ({s.englishName})
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Search & Filter Bar */}
@@ -145,7 +176,7 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث باسم الشيخ أو الرواية أو الدولة (مثال: المنشاوي، عبد الباسط، المعيقلي)..."
+            placeholder="ابحث باسم القارئ (مثال: وديع اليمني، المنشاوي، المعيقلي، هزاع البلوشي، خالد الجليل، عبد الباسط)..."
             className="w-full py-3 pr-11 pl-4 bg-[#1A202C] border border-[#2D3748] focus:border-[#C5A059] focus:ring-1 focus:ring-[#C5A059] text-stone-100 placeholder-stone-500 text-sm outline-none transition-all"
           />
           <Search className="w-4 h-4 text-[#C5A059] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -216,9 +247,9 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
 
                 {/* Riwayah and Location */}
                 <div className="mt-3 pt-2.5 border-t border-[#2D3748] flex items-center justify-between text-[11px] text-stone-400 font-mono">
-                  <span>{reciter.riwayah || "حفص عن عاصم"}</span>
+                  <span className="truncate max-w-[170px]">{reciter.riwayah || "حفص عن عاصم"}</span>
                   {reciter.location && (
-                    <span className="flex items-center gap-1 text-stone-400">
+                    <span className="flex items-center gap-1 text-stone-400 shrink-0">
                       <MapPin className="w-3 h-3 text-[#C5A059]" />
                       <span>{reciter.location}</span>
                     </span>
@@ -236,12 +267,12 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
                       ? "bg-[#C5A059] text-[#1A202C] font-bold border-[#C5A059]"
                       : "bg-[#12161F] hover:bg-[#2D3748] text-stone-300 border-[#2D3748]"
                   }`}
-                  title="استماع لعينة صوتية سريعة (سورة الفاتحة)"
+                  title="استماع لعينة صوتية سريعة"
                 >
                   {isPreviewPlaying ? (
                     <>
                       <Pause className="w-3.5 h-3.5 fill-current" />
-                      <span>إيقاف العينة</span>
+                      <span>إيقاف</span>
                     </>
                   ) : (
                     <>
@@ -272,7 +303,7 @@ export const RecitersCollection: React.FC<RecitersCollectionProps> = ({
                       onOpenQuranReader(1);
                     }}
                     className="p-1.5 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] text-stone-300 hover:text-white cursor-pointer"
-                    title="فتح المصحف والقراءة مع هذا القارئ"
+                    title="فتح المصحف والقراءة بصوت هذا القارئ"
                   >
                     <BookOpen className="w-3.5 h-3.5 text-[#C5A059]" />
                   </button>

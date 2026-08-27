@@ -35,6 +35,7 @@ export interface Reciter {
   bitrate: string;
   format: "ayah" | "surah";
   surahAudioServer?: string;
+  islamicNetworkId?: string;
   style?: "murattal" | "mujawwad" | "teacher" | "haramain";
   riwayah?: string;
   location?: string;
