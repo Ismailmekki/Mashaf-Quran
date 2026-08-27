@@ -13,6 +13,8 @@ export interface SurahMeta {
 export interface Ayah {
   number: number; // Global ayah number (1 to 6236)
   numberInSurah: number;
+  surahNumber?: number;
+  surahName?: string;
   text: string;
   translation?: string;
   tafseer?: string;

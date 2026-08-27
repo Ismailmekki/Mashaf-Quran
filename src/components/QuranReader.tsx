@@ -22,7 +22,8 @@ import {
   Eye,
   EyeOff,
   GraduationCap,
-  Globe
+  Globe,
+  X
 } from "lucide-react";
 import { SurahDetail, Ayah, ReaderSettings, Bookmark as BookmarkType, Reciter, TranslationLanguage } from "../types";
 import {
@@ -37,6 +38,11 @@ import {
 } from "../services/quranApi";
 import { SURAHS_LIST } from "../data/surahsData";
 import { getAyahVocabulary, getWordMeaningsForAyah } from "../data/quranVocabulary";
+
+export const toArabicNumber = (n: number | string): string => {
+  const digits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+  return String(n).replace(/[0-9]/g, (d) => digits[+d]);
+};
 
 interface QuranReaderProps {
   surahNumber: number;
@@ -85,6 +91,9 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
   const [mushafPageData, setMushafPageData] = useState<Ayah[]>([]);
   const [loadingMushafPage, setLoadingMushafPage] = useState(false);
 
+  // Active Ayah interactive quick-actions in Mushaf mode
+  const [activeMushafAyah, setActiveMushafAyah] = useState<Ayah | null>(null);
+
   // Active Ayah details modal (Tafseer & Word Meanings)
   const [selectedAyahForTafseer, setSelectedAyahForTafseer] = useState<Ayah | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<"tafseer" | "vocab">("tafseer");
@@ -108,6 +117,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
   const [openAyahTranslations, setOpenAyahTranslations] = useState<Record<number, boolean>>({});
   const [copiedTransAyahNumber, setCopiedTransAyahNumber] = useState<number | null>(null);
   const ayahRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const mushafAyahRefs = useRef<Map<number, HTMLElement>>(new Map());
 
   const handleToggleAyahTranslation = async (ayah: Ayah) => {
     const isCurrentlyOpen = readerSettings.showTranslation || !!openAyahTranslations[ayah.numberInSurah];
@@ -282,7 +292,21 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
     }
   }, [mushafPage, readerMode]);
 
-  // Scroll to initial or playing ayah
+  // Sync Mushaf Page automatically when reciter advances across pages
+  useEffect(() => {
+    if (currentPlayingAyah && readerMode === "mushaf" && surahDetail) {
+      if (currentPlayingAyah.surah === surahNumber) {
+        const activeAyahObj = surahDetail.ayahs.find(
+          (a) => a.numberInSurah === currentPlayingAyah.ayah
+        );
+        if (activeAyahObj && activeAyahObj.page && activeAyahObj.page !== mushafPage) {
+          setMushafPage(activeAyahObj.page);
+        }
+      }
+    }
+  }, [currentPlayingAyah, readerMode, surahDetail, surahNumber, mushafPage]);
+
+  // Scroll to initial or playing ayah in verse-by-verse mode
   useEffect(() => {
     if (initialAyahNumber && !loading) {
       const el = ayahRefs.current.get(initialAyahNumber);
@@ -300,12 +324,19 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
       currentPlayingAyah.surah === surahNumber &&
       readerSettings.autoScroll
     ) {
-      const el = ayahRefs.current.get(currentPlayingAyah.ayah);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (readerMode === "verse") {
+        const el = ayahRefs.current.get(currentPlayingAyah.ayah);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } else if (readerMode === "mushaf") {
+        const el = mushafAyahRefs.current.get(currentPlayingAyah.ayah);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       }
     }
-  }, [currentPlayingAyah, surahNumber, readerSettings.autoScroll]);
+  }, [currentPlayingAyah, surahNumber, readerSettings.autoScroll, readerMode, mushafPageData]);
 
   // Load Tafseer for selected Ayah
   const handleOpenTafseer = async (ayah: Ayah, defaultTab: "tafseer" | "vocab" = "tafseer") => {
@@ -943,23 +974,93 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
           </div>
         )}
 
+        {/* Live Audio Sync & Recitation Timeline Tracker Bar */}
+        {currentPlayingAyah && (
+          <div className="mb-6 p-4 bg-[#12161F] border-2 border-[#C5A059]/80 shadow-xl relative overflow-hidden transition-all animate-fadeIn">
+            <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent via-[#C5A059] to-transparent opacity-80" />
+            
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#C5A059] text-[#1A202C] flex items-center justify-center font-bold shadow-md">
+                  <Volume2 className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#C5A059]/20 border border-[#C5A059] text-[#E2C785] text-[10px] font-mono font-bold tracking-wider uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      تلاوة متزامنة نشطة
+                    </span>
+                    <span className="text-xs text-white font-tajawal font-bold">
+                      سورة {surahDetail.name} • الآية {toArabicNumber(currentPlayingAyah.ayah)} من {toArabicNumber(surahDetail.numberOfAyahs)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-300 font-tajawal mt-1 flex items-center gap-1.5">
+                    <span>القارئ:</span>
+                    <span className="text-[#E2C785] font-bold">{selectedReciter.name}</span>
+                    <span className="text-stone-500 font-mono text-[11px]">({selectedReciter.riwayah || "حفص عن عاصم"})</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Audio Controls in Reading View */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (currentPlayingAyah.ayah > 1) {
+                      onPlayAyah(currentPlayingAyah.surah, currentPlayingAyah.ayah - 1);
+                    }
+                  }}
+                  disabled={currentPlayingAyah.ayah <= 1}
+                  className="px-2.5 py-1.5 bg-[#1A202C] hover:bg-[#2D3748] border border-[#2D3748] disabled:opacity-30 text-stone-200 text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                  title="الآية السابقة"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <span className="hidden sm:inline">الآية السابقة</span>
+                </button>
+
+                <button
+                  onClick={() => (isPlayingAudio ? onPauseAudio() : onPlayAyah(currentPlayingAyah.surah, currentPlayingAyah.ayah))}
+                  className="px-3.5 py-1.5 bg-[#C5A059] hover:bg-[#D4AF37] text-[#1A202C] font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-95"
+                >
+                  {isPlayingAudio ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                  <span>{isPlayingAudio ? "إيقاف مؤقت" : "استئناف"}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (currentPlayingAyah.ayah < surahDetail.numberOfAyahs) {
+                      onPlayAyah(currentPlayingAyah.surah, currentPlayingAyah.ayah + 1);
+                    }
+                  }}
+                  disabled={currentPlayingAyah.ayah >= surahDetail.numberOfAyahs}
+                  className="px-2.5 py-1.5 bg-[#1A202C] hover:bg-[#2D3748] border border-[#2D3748] disabled:opacity-30 text-stone-200 text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                  title="الآية التالية"
+                >
+                  <span className="hidden sm:inline">الآية التالية</span>
+                  <ArrowLeft className="w-3.5 h-3.5 text-[#C5A059]" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 2. MUSHAF PAGE MODE (1-604 Pages) */}
         {readerMode === "mushaf" && (
-          <div className="space-y-4">
-            {/* Mushaf Page Navigation Controls */}
-            <div className="p-3 bg-[#1A202C] border border-[#2D3748] flex items-center justify-between gap-2">
+          <div className="space-y-6">
+            {/* Mushaf Page Navigation Controls Header */}
+            <div className="p-3.5 bg-[#1A202C] border border-[#C5A059]/40 flex flex-wrap items-center justify-between gap-3 shadow-md">
               <button
                 disabled={mushafPage <= 1}
                 onClick={() => setMushafPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] disabled:opacity-40 text-stone-200 text-xs flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] disabled:opacity-30 text-stone-200 text-xs flex items-center gap-1.5 cursor-pointer transition-colors font-tajawal"
               >
                 <ArrowRight className="w-4 h-4 text-[#C5A059]" />
-                <span>الصفحة السابقة</span>
+                <span>الصفحة السابقة ({mushafPage > 1 ? toArabicNumber(mushafPage - 1) : 1})</span>
               </button>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#C5A059] font-bold font-mono">
-                  صفحة {mushafPage} من 604
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[#E2C785] font-bold font-tajawal bg-[#12161F] px-3 py-1 border border-[#C5A059]/40">
+                  صفحة {toArabicNumber(mushafPage)} من {toArabicNumber(604)}
                 </span>
                 <input
                   type="range"
@@ -967,70 +1068,291 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
                   max="604"
                   value={mushafPage}
                   onChange={(e) => setMushafPage(Number(e.target.value))}
-                  className="w-24 sm:w-40 accent-[#C5A059] cursor-pointer"
+                  className="w-24 sm:w-48 accent-[#C5A059] cursor-pointer"
                 />
               </div>
 
               <button
                 disabled={mushafPage >= 604}
                 onClick={() => setMushafPage((p) => Math.min(604, p + 1))}
-                className="px-3 py-1.5 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] disabled:opacity-40 text-stone-200 text-xs flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] disabled:opacity-30 text-stone-200 text-xs flex items-center gap-1.5 cursor-pointer transition-colors font-tajawal"
               >
-                <span>الصفحة التالية</span>
+                <span>الصفحة التالية ({mushafPage < 604 ? toArabicNumber(mushafPage + 1) : 604})</span>
                 <ArrowLeft className="w-4 h-4 text-[#C5A059]" />
               </button>
             </div>
 
-            {/* Mushaf Page Card */}
-            <div className="p-6 sm:p-10 bg-[#1A202C] border-2 border-[#C5A059]/40 shadow-md text-center min-h-[600px] flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute inset-0 bg-geometric-hatch opacity-5 pointer-events-none" />
-              {loadingMushafPage ? (
-                <div className="py-24 text-center">
-                  <div className="w-10 h-10 border-2 border-[#C5A059]/20 border-t-[#C5A059] animate-spin mx-auto mb-3" />
-                  <p className="text-xs text-stone-400 font-mono">جارٍ تحميل الصفحة {mushafPage}...</p>
-                </div>
-              ) : (
-                <>
-                  {/* Page Top Header */}
-                  <div className="flex items-center justify-between border-b border-[#2D3748] pb-3 mb-6 text-xs text-[#C5A059] font-tajawal">
-                    <span>الجزء {mushafPageData[0]?.juz || surahDetail.juz}</span>
-                    <span className="font-bold text-white">سورة {surahDetail.name}</span>
-                    <span className="font-mono">صفحة {mushafPage}</span>
-                  </div>
+            {/* Royal Mushaf Page Frame */}
+            <div className="p-4 sm:p-8 bg-[#1A202C] border-4 border-[#C5A059] shadow-2xl relative overflow-hidden transition-all">
+              {/* Classical Islamic Inner Double Border */}
+              <div className="border border-[#C5A059]/60 p-4 sm:p-7 relative min-h-[680px] flex flex-col justify-between">
+                {/* Corner Geometric Ornaments */}
+                <div className="absolute top-1 right-1 text-[#C5A059] text-xs select-none opacity-80">❖</div>
+                <div className="absolute top-1 left-1 text-[#C5A059] text-xs select-none opacity-80">❖</div>
+                <div className="absolute bottom-1 right-1 text-[#C5A059] text-xs select-none opacity-80">❖</div>
+                <div className="absolute bottom-1 left-1 text-[#C5A059] text-xs select-none opacity-80">❖</div>
 
-                  {/* Verses Flow Continuous Text */}
-                  <div className="text-justify leading-[2.6] text-stone-100 py-4 relative z-10">
-                    {mushafPageData.map((ayah) => {
-                      const isPlaying =
-                        currentPlayingAyah?.ayah === ayah.numberInSurah &&
-                        currentPlayingAyah?.surah === surahNumber;
-                      return (
-                        <span
-                          key={ayah.number}
-                          onClick={() => handleOpenTafseer(ayah, "tafseer")}
-                          className={`cursor-pointer transition-colors px-1 py-0.5 ${
-                            isPlaying
-                              ? "bg-[#C5A059]/20 text-[#E2C785] border-b border-[#C5A059]"
-                              : "hover:bg-[#2D3748] hover:text-[#E2C785]"
-                          } ${getFontFamilyClass()}`}
-                          style={{ fontSize: `${readerSettings.fontSize}px` }}
-                          title={`الآية ${ayah.numberInSurah} - اضغط للتفسير ومعاني الكلمات`}
-                        >
-                          {ayah.text}
-                          <span className="ayah-symbol font-mono text-[#C5A059] mx-1 inline-block">
-                            ﴿{ayah.numberInSurah}﴾
-                          </span>
+                {loadingMushafPage ? (
+                  <div className="py-32 text-center">
+                    <div className="w-12 h-12 border-3 border-[#C5A059]/20 border-t-[#C5A059] animate-spin mx-auto mb-4" />
+                    <p className="text-sm text-[#C5A059] font-tajawal font-bold">جارٍ تحميل الصفحة {toArabicNumber(mushafPage)} بالرسم العثماني...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 1. Page Top Ornamental Header Line */}
+                    <div className="flex items-center justify-between border-b-2 border-[#C5A059]/50 pb-3 mb-6 text-xs text-[#C5A059] font-tajawal select-none">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-[#12161F] border border-[#C5A059]/40 font-mono">
+                          الجزء {toArabicNumber(mushafPageData[0]?.juz || surahDetail.juz)}
                         </span>
-                      );
-                    })}
-                  </div>
+                        {mushafPageData[0]?.hizbQuarter && (
+                          <span className="hidden sm:inline px-2 py-0.5 bg-[#12161F] border border-[#C5A059]/40 font-mono text-[11px]">
+                            الحزب {toArabicNumber(Math.ceil(mushafPageData[0].hizbQuarter / 4))}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Page Bottom Footer */}
-                  <div className="border-t border-[#2D3748] pt-3 mt-6 text-center text-xs text-[#C5A059] font-mono">
-                    — {mushafPage} —
+                      <div className="px-3 py-1 bg-[#12161F] border border-[#C5A059] text-white font-bold text-sm tracking-wide">
+                        سورة {mushafPageData[0]?.surahName || surahDetail.name}
+                      </div>
+
+                      <div className="px-2 py-0.5 bg-[#12161F] border border-[#C5A059]/40 font-mono">
+                        صفحة {toArabicNumber(mushafPage)}
+                      </div>
+                    </div>
+
+                    {/* 2. Verses Flow & Surah Header Plaques */}
+                    <div className="py-2 text-justify leading-[2.8] text-stone-100 relative z-10">
+                      {mushafPageData.map((ayah, idx) => {
+                        const targetSurahNum = ayah.surahNumber || surahNumber;
+                        const isPlaying =
+                          currentPlayingAyah?.ayah === ayah.numberInSurah &&
+                          currentPlayingAyah?.surah === targetSurahNum;
+                        const isSelected = activeMushafAyah?.numberInSurah === ayah.numberInSurah;
+                        const isFirstAyahInSurah = ayah.numberInSurah === 1;
+
+                        // Clean text if Ayah 1 to avoid duplicate Basmalah when rendering ornamental Basmalah box
+                        let displayText = ayah.text;
+                        if (isFirstAyahInSurah && targetSurahNum !== 1 && targetSurahNum !== 9) {
+                          displayText = displayText.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, "");
+                        }
+
+                        return (
+                          <React.Fragment key={ayah.number}>
+                            {/* If Surah starts on this page, render ornamental Surah plaque */}
+                            {isFirstAyahInSurah && (
+                              <div className="my-6 block w-full select-none text-center">
+                                {/* Surah Header Plaque */}
+                                <div className="p-3 bg-gradient-to-r from-[#12161F] via-[#1f2735] to-[#12161F] border-2 border-[#C5A059] shadow-lg mb-3">
+                                  <h3 className="text-xl sm:text-2xl font-bold font-tajawal text-[#E2C785] tracking-wider">
+                                    ❖ سُورَةُ {ayah.surahName || surahDetail.name} ❖
+                                  </h3>
+                                </div>
+
+                                {/* Ornamental Basmalah Box */}
+                                {targetSurahNum !== 9 && targetSurahNum !== 1 && (
+                                  <div className="py-2 my-3 text-center border-y border-[#C5A059]/40 bg-[#12161F]/60">
+                                    <p className="font-quran text-2xl sm:text-3xl text-[#C5A059] leading-relaxed">
+                                      بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Ayah Text and Verse End Badge */}
+                            <span
+                              ref={(el) => {
+                                if (el) mushafAyahRefs.current.set(ayah.numberInSurah, el);
+                              }}
+                              onClick={() => {
+                                setActiveMushafAyah(ayah);
+                              }}
+                              className={`cursor-pointer transition-all duration-200 px-1 py-0.5 rounded-sm inline relative group ${
+                                isPlaying
+                                  ? "bg-[#C5A059]/30 text-white font-bold ring-2 ring-[#C5A059] shadow-md active-playing-glow"
+                                  : isSelected
+                                  ? "bg-[#2D3748] text-[#E2C785] ring-1 ring-[#C5A059]/50"
+                                  : "hover:bg-[#2D3748]/70 hover:text-[#E2C785]"
+                              } ${getFontFamilyClass()}`}
+                              style={{ fontSize: `${readerSettings.fontSize}px` }}
+                              title={`الآية ${ayah.numberInSurah} - اضغط لخيارات التلاوة والتفسير`}
+                            >
+                              {displayText}
+                              
+                              {/* Islamic Rosette Verse Ending Marker */}
+                              <span className="inline-flex items-center justify-center mx-1.5 align-middle select-none">
+                                <span
+                                  className={`inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 border rounded-full font-mono text-xs font-bold transition-all ${
+                                    isPlaying
+                                      ? "bg-[#C5A059] text-[#1A202C] border-[#C5A059] shadow-sm scale-110"
+                                      : "bg-[#12161F] text-[#C5A059] border-[#C5A059]/70 group-hover:border-[#C5A059] group-hover:bg-[#C5A059] group-hover:text-[#1A202C]"
+                                  }`}
+                                >
+                                  ﴿{toArabicNumber(ayah.numberInSurah)}﴾
+                                </span>
+                              </span>
+                            </span>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+
+                    {/* 3. Page Bottom Explanatory Divider Line & End Marker */}
+                    <div className="mt-8 pt-4 border-t-2 border-[#C5A059]/60 select-none">
+                      <div className="flex items-center justify-center gap-3 text-xs text-[#C5A059] font-mono mb-2">
+                        <span className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#C5A059]/60 to-[#C5A059]" />
+                        <span className="px-3 py-1 bg-[#12161F] border border-[#C5A059] text-[#E2C785] font-tajawal font-bold flex items-center gap-2 shadow-sm">
+                          <span>❖ نهاية صفحة {toArabicNumber(mushafPage)} ❖</span>
+                        </span>
+                        <span className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-[#C5A059]/60 to-[#C5A059]" />
+                      </div>
+                      <p className="text-center text-[11px] text-stone-400 font-mono">
+                        صفحة ({mushafPage}) من (٦٠٤) • المصحف الشريف بالرسم العثماني
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Interactive Ayah Quick Actions Dock (when clicked in Mushaf mode) */}
+            {activeMushafAyah && (
+              <div className="p-4 bg-[#12161F] border-2 border-[#C5A059] shadow-2xl flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className="w-7 h-7 bg-[#C5A059] text-[#1A202C] font-bold flex items-center justify-center font-mono text-xs">
+                    {activeMushafAyah.numberInSurah}
+                  </span>
+                  <div>
+                    <h4 className="text-xs text-white font-tajawal font-bold">
+                      سورة {activeMushafAyah.surahName || surahDetail.name} • الآية {toArabicNumber(activeMushafAyah.numberInSurah)}
+                    </h4>
+                    <p className="text-[11px] text-stone-400 font-mono">
+                      الجزء {activeMushafAyah.juz} • الصفحة {mushafPage}
+                    </p>
                   </div>
-                </>
-              )}
+                </div>
+
+                <div className="flex items-center flex-wrap gap-2 text-xs font-tajawal">
+                  <button
+                    onClick={() => {
+                      onPlayAyah(activeMushafAyah.surahNumber || surahNumber, activeMushafAyah.numberInSurah);
+                    }}
+                    className="px-3 py-1.5 bg-[#C5A059] text-[#1A202C] font-bold flex items-center gap-1.5 cursor-pointer shadow-sm hover:bg-[#D4AF37]"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>تشغيل من هذه الآية</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenTafseer(activeMushafAyah, "tafseer")}
+                    className="px-3 py-1.5 bg-[#1A202C] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] text-stone-200 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span>التفسير</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenTafseer(activeMushafAyah, "vocab")}
+                    className="px-3 py-1.5 bg-[#1A202C] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] text-stone-200 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span>المفردات والإعراب</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onToggleBookmark(
+                        activeMushafAyah.surahNumber || surahNumber,
+                        activeMushafAyah.surahName || surahDetail.name,
+                        activeMushafAyah.numberInSurah,
+                        activeMushafAyah.text
+                      );
+                    }}
+                    className="px-3 py-1.5 bg-[#1A202C] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] text-stone-200 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isAyahBookmarked(activeMushafAyah.numberInSurah) ? (
+                      <>
+                        <BookmarkCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">محفوظة</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-3.5 h-3.5 text-[#C5A059]" />
+                        <span>إشارة مرجعية</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleCopyAyah(activeMushafAyah)}
+                    className="px-3 py-1.5 bg-[#1A202C] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] text-stone-200 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {copiedAyahNumber === activeMushafAyah.numberInSurah ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-[#C5A059]" />
+                        <span>نسخ الآية</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onOpenTadabbur(
+                        activeMushafAyah.surahName || surahDetail.name,
+                        activeMushafAyah.numberInSurah,
+                        activeMushafAyah.text
+                      );
+                    }}
+                    className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-[#C5A059] text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>تدبر بالذكاء الاصطناعي</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveMushafAyah(null)}
+                    className="p-1.5 bg-[#1A202C] hover:bg-[#2D3748] text-stone-400 hover:text-white cursor-pointer ml-auto"
+                    title="إغلاق القائمة"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Mushaf Page Turn Quick Switcher */}
+            <div className="p-3 bg-[#1A202C] border border-[#2D3748] flex items-center justify-between gap-3 text-xs font-tajawal">
+              <button
+                disabled={mushafPage <= 1}
+                onClick={() => setMushafPage((p) => Math.max(1, p - 1))}
+                className="px-4 py-2 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] disabled:opacity-30 text-stone-200 flex items-center gap-2 cursor-pointer transition-colors font-medium"
+              >
+                <ArrowRight className="w-4 h-4 text-[#C5A059]" />
+                <span>الصفحة السابقة ({mushafPage > 1 ? toArabicNumber(mushafPage - 1) : 1})</span>
+              </button>
+
+              <button
+                onClick={() => setReaderMode("verse")}
+                className="px-3 py-1.5 bg-[#12161F] hover:bg-[#2D3748] border border-[#C5A059]/40 text-[#E2C785] cursor-pointer flex items-center gap-1.5"
+              >
+                <Columns className="w-3.5 h-3.5 text-[#C5A059]" />
+                <span>التبديل إلى عرض (آية بآية)</span>
+              </button>
+
+              <button
+                disabled={mushafPage >= 604}
+                onClick={() => setMushafPage((p) => Math.min(604, p + 1))}
+                className="px-4 py-2 bg-[#12161F] hover:bg-[#2D3748] border border-[#2D3748] hover:border-[#C5A059] disabled:opacity-30 text-stone-200 flex items-center gap-2 cursor-pointer transition-colors font-medium"
+              >
+                <span>الصفحة التالية ({mushafPage < 604 ? toArabicNumber(mushafPage + 1) : 604})</span>
+                <ArrowLeft className="w-4 h-4 text-[#C5A059]" />
+              </button>
             </div>
           </div>
         )}

@@ -349,6 +349,8 @@ export async function fetchMushafPage(pageNumber: number): Promise<{ pageNumber:
         return {
           number: a.number,
           numberInSurah: a.numberInSurah,
+          surahNumber: a.surah?.number,
+          surahName: a.surah?.name,
           text: a.text,
           juz: a.juz,
           page: a.page,
