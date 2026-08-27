@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-cairo: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-quran: 'Amiri Quran', 'Amiri', 'Scheherazade New', serif;
+    --font-amiri: 'Amiri', 'Scheherazade New', serif;
+    --font-scheherazade: 'Scheherazade New', 'Amiri', serif;
+    --font-tajawal: 'Tajawal', 'Cairo', sans-serif;
+    --gold-primary: #C5A059;
+    --gold-dark: #8B6E3D;
+    --slate-deep: #1A202C;
+    --parchment-bg: #FDFCF7;
+  }
+}
+
+.font-cairo {
+  font-family: var(--font-cairo);
+}
+
+.font-quran {
+  font-family: var(--font-quran);
+}
+
+.font-amiri {
+  font-family: var(--font-amiri);
+}
+
+.font-scheherazade {
+  font-family: var(--font-scheherazade);
+}
+
+.font-tajawal {
+  font-family: var(--font-tajawal);
+}
+
+/* Geometric Dot Grid Background */
+.bg-geometric-grid {
+  background-color: #FDFCF7;
+  background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-geometric-grid-dark {
+  background-color: #12161F;
+  background-image: radial-gradient(#2D3748 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Geometric Hatch Accent */
+.bg-geometric-hatch {
+  background: repeating-linear-gradient(45deg, #C5A059, #C5A059 10px, transparent 10px, transparent 20px);
+}
+
+/* 45-degree Rotated Diamond Badge */
+.diamond-badge {
+  transform: rotate(45deg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #C5A059;
+}
+
+.diamond-badge > * {
+  transform: rotate(-45deg);
+}
+
+/* Custom Quran reader parchment & dark mode surfaces */
+.theme-dark {
+  background-color: #0F141C;
+  color: #F8FAFC;
+}
+
+.theme-emerald {
+  background-color: #05231C;
+  color: #F0FDF4;
+}
+
+.theme-sapphire {
+  background-color: #0A192F;
+  color: #F0F9FF;
+}
+
+.theme-amber {
+  background-color: #1A1218;
+  color: #FFF7ED;
+}
+
+.theme-sepia {
+  background-color: #FBF7EE;
+  color: #2C221E;
+}
+
+.theme-classic {
+  background-color: #FFFFFF;
+  color: #0F172A;
+}
+
+/* Smooth custom scrollbars in Geometric Gold */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(197, 160, 89, 0.4);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(197, 160, 89, 0.8);
+}
+
+/* Ayah end symbol styling in Geometric Gold */
+.ayah-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-cairo);
+  font-size: 0.75em;
+  color: #C5A059;
+  margin: 0 0.35em;
+  user-select: none;
+}
+
+/* Islamic Geometric Border */
+.geometric-gold-border {
+  border: 1px solid #E2E8F0;
+  transition: all 0.2s ease-in-out;
+}
+
+.geometric-gold-border:hover {
+  border-color: #C5A059;
+}
+
+@keyframes pulseGoldGlow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(197, 160, 89, 0.2);
+    border-color: #C5A059;
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(197, 160, 89, 0.45);
+    border-color: #8B6E3D;
+  }
+}
+
+.active-playing-glow {
+  animation: pulseGoldGlow 2.5s infinite ease-in-out;
+}

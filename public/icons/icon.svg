@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A202C"/>
+      <stop offset="50%" stop-color="#12161F"/>
+      <stop offset="100%" stop-color="#0B0E14"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F3E5AB"/>
+      <stop offset="30%" stop-color="#E2C785"/>
+      <stop offset="70%" stop-color="#C5A059"/>
+      <stop offset="100%" stop-color="#8B6E3D"/>
+    </linearGradient>
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#C5A059" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners for maskable icon -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  
+  <!-- Outer Gold Border -->
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="none" stroke="url(#goldGrad)" stroke-width="8" opacity="0.85"/>
+  
+  <!-- Inner Ornamental Geometric Border -->
+  <rect x="44" y="44" width="424" height="424" rx="80" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-dasharray="8 6" opacity="0.5"/>
+  
+  <!-- Center Quran / Crescent & Star Geometric Art -->
+  <g transform="translate(256, 256)">
+    <!-- 8-Pointed Star / Islamic Rub El Hizb -->
+    <rect x="-100" y="-100" width="200" height="200" rx="16" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.4"/>
+    <rect x="-100" y="-100" width="200" height="200" rx="16" transform="rotate(45)" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.4"/>
+
+    <!-- Open Holy Quran Book Illustration -->
+    <g transform="translate(0, 10)">
+      <!-- Left Page -->
+      <path d="M -8 -45 C -45 -55, -95 -50, -115 -35 C -120 -30, -120 55, -115 65 C -95 50, -45 45, -8 55 Z" fill="#FDFCF7" stroke="url(#goldGrad)" stroke-width="4"/>
+      <!-- Right Page -->
+      <path d="M 8 -45 C 45 -55, 95 -50, 115 -35 C 120 -30, 120 55, 115 65 C 95 50, 45 45, 8 55 Z" fill="#FDFCF7" stroke="url(#goldGrad)" stroke-width="4"/>
+      
+      <!-- Book Spine -->
+      <path d="M -8 -45 L 0 -50 L 8 -45 L 8 55 L 0 60 L -8 55 Z" fill="url(#goldGrad)"/>
+      <path d="M 0 60 L 0 90" stroke="url(#goldGrad)" stroke-width="6" stroke-linecap="round"/>
+
+      <!-- Quran Calligraphy Lines -->
+      <line x1="-95" y1="-20" x2="-25" y2="-20" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <line x1="-95" y1="-5" x2="-25" y2="-5" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <line x1="-95" y1="10" x2="-25" y2="10" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <line x1="-95" y1="25" x2="-35" y2="25" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      
+      <line x1="25" y1="-20" x2="95" y2="-20" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <line x1="25" y1="-5" x2="95" y2="-5" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <line x1="25" y1="10" x2="95" y2="10" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <line x1="35" y1="25" x2="95" y2="25" stroke="#C5A059" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+
+      <!-- Golden Bookmark Ribbon -->
+      <path d="M 0 -45 L 0 75 L 12 65 L 24 75 L 24 -45 Z" fill="url(#goldGrad)" opacity="0.9"/>
+    </g>
+
+    <!-- Crescent Moon & Golden Star Above -->
+    <g transform="translate(0, -90) scale(0.65)">
+      <path d="M 0,-40 A 40,40 0 1,0 40,0 A 30,30 0 1,1 0,-40 Z" fill="url(#goldGrad)"/>
+      <polygon points="12,-15 15,-6 24,-6 17,0 20,9 12,3 4,9 7,0 0,-6 9,-6" fill="url(#goldGrad)"/>
+    </g>
+  </g>
+  
+  <!-- Bottom Arabic Typography "القرآن الكريم" -->
+  <text x="256" y="440" font-family="'Amiri', 'Cairo', serif" font-size="34" font-weight="bold" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="2">القرآن الكريم</text>
+</svg>
