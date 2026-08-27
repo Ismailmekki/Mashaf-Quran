@@ -1,8 +1,8 @@
 import { Ayah, SurahDetail } from "../types";
 import { SURAHS_LIST } from "../data/surahsData";
 
-const CACHE_PREFIX = "quran_surah_cache_";
-const PAGE_CACHE_PREFIX = "quran_page_cache_";
+const CACHE_PREFIX = "quran_surah_v5_";
+const PAGE_CACHE_PREFIX = "quran_page_cache_v5_";
 
 // Fallback initial bundle for Surah 1 (Al-Fatihah)
 const FATIHAH_AYAHS: Ayah[] = [
@@ -66,6 +66,26 @@ export function getTranslationEditionId(key: string): string {
   return key || "en.sahih";
 }
 
+export function isValidTranslationText(transText: string | undefined | null, arabicAyahText: string, langKey = "en"): boolean {
+  if (!transText || typeof transText !== "string") return false;
+  const cleanTrans = transText.trim();
+  const cleanArabic = (arabicAyahText || "").trim();
+  if (cleanTrans.length === 0) return false;
+  // If translation is identical to Arabic text, it is invalid
+  if (cleanTrans === cleanArabic) return false;
+
+  // If language is non-Arabic script (English, French, Turkish, Russian, German, etc.), verify it's not Arabic
+  const isArabicScriptLang = ["ur", "fa", "ku"].includes(langKey);
+  if (!isArabicScriptLang) {
+    const arabicChars = cleanTrans.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g);
+    if (arabicChars && arabicChars.length > cleanTrans.length * 0.4) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export async function fetchSurahTranslations(surahNumber: number, translationKey: string): Promise<Map<number, string>> {
   const editionId = getTranslationEditionId(translationKey);
   const translationsMap = new Map<number, string>();
@@ -76,9 +96,13 @@ export async function fetchSurahTranslations(surahNumber: number, translationKey
       const data = await res.json();
       if (data && data.data && Array.isArray(data.data.ayahs)) {
         for (const a of data.data.ayahs) {
-          translationsMap.set(a.numberInSurah, a.text);
+          if (a.text && typeof a.text === "string") {
+            translationsMap.set(a.numberInSurah, a.text);
+          }
         }
-        return translationsMap;
+        if (translationsMap.size > 0) {
+          return translationsMap;
+        }
       }
     }
   } catch (e) {
@@ -105,6 +129,33 @@ export async function fetchSurahTranslations(surahNumber: number, translationKey
   return translationsMap;
 }
 
+export async function fetchAyahTranslation(surahNumber: number, ayahNumberInSurah: number, translationKey = "en"): Promise<string> {
+  const editionId = getTranslationEditionId(translationKey);
+  try {
+    const res = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumberInSurah}/${editionId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.data?.text) {
+        return data.data.text;
+      }
+    }
+  } catch (e) {
+    console.warn("fetchAyahTranslation error:", e);
+  }
+
+  if (editionId !== "en.sahih") {
+    try {
+      const fb = await fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumberInSurah}/en.sahih`);
+      if (fb.ok) {
+        const d = await fb.json();
+        if (d?.data?.text) return d.data.text;
+      }
+    } catch (e) {}
+  }
+
+  return "";
+}
+
 export async function fetchSurah(surahNumber: number, translationEdition = "en"): Promise<SurahDetail> {
   const meta = SURAHS_LIST.find((s) => s.number === surahNumber) || SURAHS_LIST[0];
   const editionId = getTranslationEditionId(translationEdition);
@@ -115,7 +166,13 @@ export async function fetchSurah(surahNumber: number, translationEdition = "en")
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (parsed && Array.isArray(parsed.ayahs) && parsed.ayahs.length > 0 && parsed.ayahs[0].translation) {
+      if (
+        parsed &&
+        Array.isArray(parsed.ayahs) &&
+        parsed.ayahs.length > 0 &&
+        parsed.ayahs[0].translation &&
+        isValidTranslationText(parsed.ayahs[0].translation, parsed.ayahs[0].text, translationEdition)
+      ) {
         return parsed;
       }
     }
@@ -188,11 +245,14 @@ export async function fetchSurah(surahNumber: number, translationEdition = "en")
       if (surahNumber !== 1 && surahNumber !== 9 && a.numberInSurah === 1) {
         text = text.replace(/^بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\s*/, "");
       }
+      const rawTrans = translationsMap.get(a.numberInSurah) || "";
+      const validTrans = isValidTranslationText(rawTrans, text, translationEdition) ? rawTrans : "";
+
       return {
         number: a.number,
         numberInSurah: a.numberInSurah,
         text: text || a.text,
-        translation: translationsMap.get(a.numberInSurah) || "",
+        translation: validTrans,
         juz: a.juz,
         page: a.page,
         hizbQuarter: a.hizbQuarter,

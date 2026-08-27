@@ -372,6 +372,8 @@ export const App: React.FC = () => {
             selectedReciter={selectedReciter}
             onSelectReciter={setSelectedReciter}
             onUpdateLastRead={handleUpdateLastRead}
+            onOpenTranslations={() => setIsTranslationsOpen(true)}
+            onUpdateReaderSettings={setReaderSettings}
           />
         )}
 

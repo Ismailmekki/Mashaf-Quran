@@ -24,8 +24,17 @@ import {
   GraduationCap,
   Globe
 } from "lucide-react";
-import { SurahDetail, Ayah, ReaderSettings, Bookmark as BookmarkType, Reciter } from "../types";
-import { fetchSurah, fetchSurahTranslations, fetchTafseer, fetchMushafPage, TAFSEER_EDITIONS_MAP, TRANSLATIONS_MAP } from "../services/quranApi";
+import { SurahDetail, Ayah, ReaderSettings, Bookmark as BookmarkType, Reciter, TranslationLanguage } from "../types";
+import {
+  fetchSurah,
+  fetchSurahTranslations,
+  fetchAyahTranslation,
+  fetchTafseer,
+  fetchMushafPage,
+  TAFSEER_EDITIONS_MAP,
+  TRANSLATIONS_MAP,
+  isValidTranslationText
+} from "../services/quranApi";
 import { SURAHS_LIST } from "../data/surahsData";
 import { getAyahVocabulary, getWordMeaningsForAyah } from "../data/quranVocabulary";
 
@@ -45,6 +54,8 @@ interface QuranReaderProps {
   selectedReciter: Reciter;
   onSelectReciter: (reciter: Reciter) => void;
   onUpdateLastRead: (surahNumber: number, ayahNumber: number, surahName: string, page: number) => void;
+  onOpenTranslations?: () => void;
+  onUpdateReaderSettings?: React.Dispatch<React.SetStateAction<ReaderSettings>>;
 }
 
 export const QuranReader: React.FC<QuranReaderProps> = ({
@@ -62,7 +73,9 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
   reciters,
   selectedReciter,
   onSelectReciter,
-  onUpdateLastRead
+  onUpdateLastRead,
+  onOpenTranslations,
+  onUpdateReaderSettings
 }) => {
   const [surahDetail, setSurahDetail] = useState<SurahDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,7 +105,98 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
   });
 
   const [loadingTranslations, setLoadingTranslations] = useState(false);
+  const [openAyahTranslations, setOpenAyahTranslations] = useState<Record<number, boolean>>({});
+  const [copiedTransAyahNumber, setCopiedTransAyahNumber] = useState<number | null>(null);
   const ayahRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const handleToggleAyahTranslation = async (ayah: Ayah) => {
+    const isCurrentlyOpen = readerSettings.showTranslation || !!openAyahTranslations[ayah.numberInSurah];
+    const targetState = !isCurrentlyOpen;
+
+    setOpenAyahTranslations((prev) => ({
+      ...prev,
+      [ayah.numberInSurah]: targetState
+    }));
+
+    const currentLangKey = readerSettings.translationLang || "en";
+    const hasValidTrans = isValidTranslationText(ayah.translation, ayah.text, currentLangKey);
+
+    if (targetState && !hasValidTrans) {
+      setLoadingTranslations(true);
+      try {
+        const directTrans = await fetchAyahTranslation(surahNumber, ayah.numberInSurah, currentLangKey);
+        if (directTrans && isValidTranslationText(directTrans, ayah.text, currentLangKey)) {
+          setSurahDetail((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              ayahs: prev.ayahs.map((a) =>
+                a.numberInSurah === ayah.numberInSurah ? { ...a, translation: directTrans } : a
+              )
+            };
+          });
+        } else {
+          const transMap = await fetchSurahTranslations(surahNumber, currentLangKey);
+          if (transMap.size > 0) {
+            setSurahDetail((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                ayahs: prev.ayahs.map((a) => ({
+                  ...a,
+                  translation: transMap.get(a.numberInSurah) || a.translation || ""
+                }))
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load ayah translation:", err);
+      } finally {
+        setLoadingTranslations(false);
+      }
+    }
+  };
+
+  const handleQuickChangeLanguage = async (newLangKey: TranslationLanguage) => {
+    if (onUpdateReaderSettings) {
+      onUpdateReaderSettings((prev) => ({
+        ...prev,
+        translationLang: newLangKey,
+        showTranslation: true
+      }));
+    }
+    setLoadingTranslations(true);
+    try {
+      const transMap = await fetchSurahTranslations(surahNumber, newLangKey);
+      if (transMap.size > 0) {
+        setSurahDetail((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            ayahs: prev.ayahs.map((a) => ({
+              ...a,
+              translation: transMap.get(a.numberInSurah) || a.translation || ""
+            }))
+          };
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch new language translations:", err);
+    } finally {
+      setLoadingTranslations(false);
+    }
+  };
+
+  const handleCopyTranslation = (ayah: Ayah, transText: string) => {
+    const langInfo = TRANSLATIONS_MAP[readerSettings.translationLang || "en"];
+    const textToCopy = `﴿${ayah.text}﴾ [${surahDetail?.name || "سورة"} : ${ayah.numberInSurah}]\n\nالترجمة (${langInfo?.name || "English"}):\n${transText}`;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedTransAyahNumber(ayah.numberInSurah);
+    setTimeout(() => {
+      setCopiedTransAyahNumber(null);
+    }, 2000);
+  };
 
   // Load Surah
   useEffect(() => {
@@ -552,6 +656,21 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
                         <span className="hidden sm:inline font-medium">تدبر ذكي</span>
                       </button>
 
+                      {/* Translation Button */}
+                      <button
+                        id={`btn-trans-ayah-${ayah.numberInSurah}`}
+                        onClick={() => handleToggleAyahTranslation(ayah)}
+                        title="ترجمة معاني الآية باللغات العالمية"
+                        className={`p-1.5 sm:px-3 sm:py-1 text-xs flex items-center gap-1 transition-colors cursor-pointer border ${
+                          readerSettings.showTranslation || openAyahTranslations[ayah.numberInSurah]
+                            ? "bg-[#C5A059] text-[#1A202C] font-bold border-[#C5A059]"
+                            : "bg-[#12161F] hover:bg-[#2D3748] text-stone-300 border-[#2D3748]"
+                        }`}
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline font-medium">الترجمة</span>
+                      </button>
+
                       {/* Hifz Memorization Toggle */}
                       {readerSettings.hifzMode && (
                         <button
@@ -657,76 +776,162 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
                     )}
                   </div>
 
-                  {/* Translation Line (if enabled) */}
-                  {readerSettings.showTranslation && (
-                    <div className="mt-3 pt-3 border-t border-[#2D3748]/80 bg-[#12161F]/60 p-3 border border-[#2D3748] transition-all">
+                  {/* Translation Card (Shown when global setting is active OR toggled for this specific Ayah) */}
+                  {(readerSettings.showTranslation || !!openAyahTranslations[ayah.numberInSurah]) && (
+                    <div className="mt-3 pt-3 border-t border-[#2D3748]/80 bg-[#12161F]/90 p-3.5 border border-[#2D3748] rounded-none transition-all shadow-inner">
                       {(() => {
                         const langKey = readerSettings.translationLang || "en";
                         const transInfo = TRANSLATIONS_MAP[langKey] || TRANSLATIONS_MAP["en"];
                         const isRtl = transInfo?.direction === "rtl";
+                        const validTrans = isValidTranslationText(ayah.translation, ayah.text, langKey) ? ayah.translation : "";
 
-                        if (ayah.translation && ayah.translation.trim().length > 0) {
-                          return (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px] text-[#C5A059]">
-                                <span className="font-mono flex items-center gap-1.5 font-bold">
-                                  <span>{transInfo?.flag || "🌍"}</span>
-                                  <span>{transInfo?.name || transInfo?.language || "English"}</span>
+                        return (
+                          <div className="space-y-3">
+                            {/* Translation Top Bar */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-[#2D3748]/60 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base leading-none">{transInfo?.flag || "🌍"}</span>
+                                <span className="font-bold text-[#C5A059] font-tajawal">
+                                  {transInfo?.name || transInfo?.language || "English"}
                                 </span>
-                                <span className="text-[10px] text-stone-500 font-mono">
-                                  {isRtl ? "RTL • ترجمة معتمدة" : "LTR • Certified Translation"}
+                                <span className="text-[10px] text-stone-400 px-1.5 py-0.5 bg-[#1A202C] border border-[#2D3748] font-mono">
+                                  {isRtl ? "RTL • معتمد" : "LTR • Certified"}
                                 </span>
                               </div>
+
+                              <div className="flex items-center gap-1.5">
+                                {/* Quick Modal Language Trigger */}
+                                {onOpenTranslations && (
+                                  <button
+                                    onClick={onOpenTranslations}
+                                    title="اختيار من بين 20+ لغة عالمية"
+                                    className="px-2 py-1 bg-[#1A202C] hover:bg-[#2D3748] text-stone-300 hover:text-white border border-[#2D3748] text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    <Globe className="w-3 h-3 text-[#C5A059]" />
+                                    <span>كل اللغات (20+)</span>
+                                  </button>
+                                )}
+
+                                {/* Copy Translation Button */}
+                                {validTrans && (
+                                  <button
+                                    onClick={() => handleCopyTranslation(ayah, validTrans)}
+                                    title="نسخ الترجمة"
+                                    className="p-1 bg-[#1A202C] hover:bg-[#2D3748] text-stone-300 hover:text-white border border-[#2D3748] text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    {copiedTransAyahNumber === ayah.numberInSurah ? (
+                                      <>
+                                        <Check className="w-3 h-3 text-[#C5A059]" />
+                                        <span className="text-[10px] text-[#C5A059]">تم النسخ</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3" />
+                                        <span className="text-[10px]">نسخ</span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+
+                                {/* Ayah-specific close button if opened independently */}
+                                {!readerSettings.showTranslation && openAyahTranslations[ayah.numberInSurah] && (
+                                  <button
+                                    onClick={() => handleToggleAyahTranslation(ayah)}
+                                    title="إغلاق الترجمة لهذه الآية"
+                                    className="px-1.5 py-0.5 text-stone-400 hover:text-stone-200 text-xs hover:bg-[#2D3748] cursor-pointer"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Quick Language Switcher Pills */}
+                            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                              <span className="text-stone-400 text-[10px] ml-1">تغيير سريع:</span>
+                              {[
+                                { key: "en" as TranslationLanguage, label: "English 🇬🇧" },
+                                { key: "fr" as TranslationLanguage, label: "Français 🇫🇷" },
+                                { key: "ur" as TranslationLanguage, label: "اردو 🇵🇰" },
+                                { key: "tr" as TranslationLanguage, label: "Türkçe 🇹🇷" },
+                                { key: "id" as TranslationLanguage, label: "Indonesia 🇮🇩" },
+                                { key: "de" as TranslationLanguage, label: "Deutsch 🇩🇪" },
+                                { key: "ru" as TranslationLanguage, label: "Русский 🇷🇺" },
+                                { key: "es" as TranslationLanguage, label: "Español 🇪🇸" }
+                              ].map((quick) => (
+                                <button
+                                  key={quick.key}
+                                  onClick={() => handleQuickChangeLanguage(quick.key)}
+                                  className={`px-2 py-0.5 text-[10px] border transition-colors cursor-pointer ${
+                                    langKey === quick.key
+                                      ? "bg-[#C5A059] text-[#1A202C] font-bold border-[#C5A059]"
+                                      : "bg-[#1A202C] hover:bg-[#2D3748] text-stone-400 hover:text-stone-200 border-[#2D3748]"
+                                  }`}
+                                >
+                                  {quick.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Translation Content */}
+                            {validTrans ? (
                               <p
                                 dir={isRtl ? "rtl" : "ltr"}
-                                className={`text-xs sm:text-sm text-stone-200 leading-relaxed ${
+                                className={`text-sm sm:text-base text-stone-100 leading-relaxed select-text p-2 bg-[#1A202C]/60 border border-[#2D3748]/50 ${
                                   isRtl ? "text-right font-tajawal" : "text-left font-sans"
                                 }`}
                               >
-                                {ayah.translation}
+                                {validTrans}
                               </p>
-                            </div>
-                          );
-                        }
-
-                        if (loadingTranslations) {
-                          return (
-                            <div className="flex items-center gap-2 text-xs text-stone-400 py-1 font-tajawal">
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#C5A059]" />
-                              <span>جارٍ تحميل الترجمة ({transInfo?.name || "المحددة"})...</span>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="flex items-center justify-between text-xs text-stone-400 font-tajawal py-1">
-                            <span>لا تتوفر ترجمة مباشرة لهذه الآية حالياً.</span>
-                            <button
-                              onClick={() => {
-                                setLoadingTranslations(true);
-                                fetchSurahTranslations(surahNumber, langKey)
-                                  .then((transMap) => {
-                                    if (transMap.size > 0) {
-                                      setSurahDetail((prev) => {
-                                        if (!prev) return null;
-                                        return {
-                                          ...prev,
-                                          ayahs: prev.ayahs.map((a) => ({
-                                            ...a,
-                                            translation: transMap.get(a.numberInSurah) || a.translation || ""
-                                          }))
-                                        };
-                                      });
-                                    }
-                                    setLoadingTranslations(false);
-                                  })
-                                  .catch(() => setLoadingTranslations(false));
-                              }}
-                              className="text-[#C5A059] hover:underline flex items-center gap-1 cursor-pointer text-[11px]"
-                            >
-                              <RefreshCw className="w-3 h-3" />
-                              <span>إعادة التحميل</span>
-                            </button>
+                            ) : loadingTranslations ? (
+                              <div className="flex items-center gap-2 text-xs text-stone-300 py-3 px-2 bg-[#1A202C]/40 font-tajawal">
+                                <RefreshCw className="w-4 h-4 animate-spin text-[#C5A059]" />
+                                <span>جارٍ تحميل ترجمة معاني الآية باللغة المحددة ({transInfo?.name || "المعتمدة"})...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between text-xs text-stone-300 font-tajawal p-2 bg-[#1A202C]/40 border border-[#2D3748]/40">
+                                <span>جارٍ جلب نص الترجمة من الخادم...</span>
+                                <button
+                                  onClick={() => {
+                                    setLoadingTranslations(true);
+                                    fetchAyahTranslation(surahNumber, ayah.numberInSurah, langKey)
+                                      .then((t) => {
+                                        if (t && isValidTranslationText(t, ayah.text, langKey)) {
+                                          setSurahDetail((prev) => {
+                                            if (!prev) return null;
+                                            return {
+                                              ...prev,
+                                              ayahs: prev.ayahs.map((a) =>
+                                                a.numberInSurah === ayah.numberInSurah ? { ...a, translation: t } : a
+                                              )
+                                            };
+                                          });
+                                        } else {
+                                          return fetchSurahTranslations(surahNumber, langKey).then((transMap) => {
+                                            if (transMap.size > 0) {
+                                              setSurahDetail((prev) => {
+                                                if (!prev) return null;
+                                                return {
+                                                  ...prev,
+                                                  ayahs: prev.ayahs.map((a) => ({
+                                                    ...a,
+                                                    translation: transMap.get(a.numberInSurah) || a.translation || ""
+                                                  }))
+                                                };
+                                              });
+                                            }
+                                          });
+                                        }
+                                      })
+                                      .finally(() => setLoadingTranslations(false));
+                                  }}
+                                  className="text-[#C5A059] hover:underline flex items-center gap-1 cursor-pointer text-xs font-bold"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                  <span>تحميل الترجمة الآن</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
