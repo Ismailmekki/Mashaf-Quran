@@ -36,39 +36,86 @@ export const TAFSEER_EDITIONS_MAP: Record<string, { id: string; name: string; au
   eerab: { id: "ar.eerab", name: "إعراب القرآن الكريم وبيانه", author: "محيي الدين درويش" }
 };
 
-export const TRANSLATIONS_MAP: Record<string, { id: string; name: string; language: string; flag: string }> = {
-  "en": { id: "en.sahih", name: "English (Sahih International)", language: "الإنجليزية", flag: "🇬🇧" },
-  "en.khattab": { id: "en.khattab", name: "English (The Clear Quran - Dr. Mustafa Khattab)", language: "الإنجليزية - المعاصرة", flag: "🇺🇸" },
-  "en.yusufali": { id: "en.yusufali", name: "English (Abdullah Yusuf Ali)", language: "الإنجليزية - الكلاسيكية", flag: "🇬🇧" },
-  "fr": { id: "fr.hamidullah", name: "Français (Muhammad Hamidullah)", language: "الفرنسية", flag: "🇫🇷" },
-  "ur": { id: "ur.jalandhry", name: "اردو (فتح محمد جالندھری)", language: "الأردية", flag: "🇵🇰" },
-  "tr": { id: "tr.diyanet", name: "Türkçe (Diyanet İşleri)", language: "التركية", flag: "🇹🇷" },
-  "id": { id: "id.indonesian", name: "Bahasa Indonesia (Kemenag)", language: "الإندونيسية", flag: "🇮🇩" },
-  "ru": { id: "ru.kuliev", name: "Русский (Эльмир Кулиев)", language: "الروسية", flag: "🇷🇺" },
-  "de": { id: "de.bubenheim", name: "Deutsch (Bubenheim & Elyas)", language: "الألمانية", flag: "🇩🇪" },
-  "es": { id: "es.cortes", name: "Español (Julio Cortés)", language: "الإسبانية", flag: "🇪🇸" },
-  "fa": { id: "fa.makarem", name: "فارسی (مکارم شیرازی)", language: "الفارسية", flag: "🇮🇷" },
-  "bn": { id: "bn.bengali", name: "বাংলা (মুহিউদ্দীন খান)", language: "البنغالية", flag: "🇧🇩" },
-  "zh": { id: "zh.jian", name: "中文 (马坚 - Ma Jian)", language: "الصينية", flag: "🇨🇳" },
-  "hi": { id: "hi.farooq", name: "हिन्दी (फ़ारूक़ ख़ान)", language: "الهندية", flag: "🇮🇳" },
-  "ku": { id: "ku.asan", name: "کوردی (بورهان محەمەد ئەمین)", language: "الكردية", flag: "☀️" },
-  "it": { id: "it.piccardo", name: "Italiano (Hamza Piccardo)", language: "الإيطالية", flag: "🇮🇹" },
-  "pt": { id: "pt.elhayek", name: "Português (Samir El-Hayek)", language: "البرتغالية", flag: "🇵🇹" },
-  "bs": { id: "bs.korkut", name: "Bosanski (Besim Korkut)", language: "البوسنية", flag: "🇧🇦" },
-  "ms": { id: "ms.basmeih", name: "Bahasa Melayu (Abdullah Basmeih)", language: "الماليزية", flag: "🇲🇾" },
-  "sv": { id: "sv.bernstrom", name: "Svenska (Knut Bernström)", language: "السويدية", flag: "🇸🇪" }
+export const TRANSLATIONS_MAP: Record<string, { id: string; name: string; language: string; flag: string; direction: "ltr" | "rtl" }> = {
+  "en": { id: "en.sahih", name: "English (Sahih International)", language: "الإنجليزية", flag: "🇬🇧", direction: "ltr" },
+  "en.khattab": { id: "en.sahih", name: "English (The Clear Quran / Sahih)", language: "الإنجليزية - المعاصرة", flag: "🇺🇸", direction: "ltr" },
+  "en.yusufali": { id: "en.yusufali", name: "English (Abdullah Yusuf Ali)", language: "الإنجليزية - الكلاسيكية", flag: "🇬🇧", direction: "ltr" },
+  "fr": { id: "fr.hamidullah", name: "Français (Muhammad Hamidullah)", language: "الفرنسية", flag: "🇫🇷", direction: "ltr" },
+  "ur": { id: "ur.jalandhry", name: "اردو (فتح محمد جالندھری)", language: "الأردية", flag: "🇵🇰", direction: "rtl" },
+  "tr": { id: "tr.diyanet", name: "Türkçe (Diyanet İşleri)", language: "التركية", flag: "🇹🇷", direction: "ltr" },
+  "id": { id: "id.indonesian", name: "Bahasa Indonesia (Kemenag)", language: "الإندونيسية", flag: "🇮🇩", direction: "ltr" },
+  "ru": { id: "ru.kuliev", name: "Русский (Эльмир Кулиев)", language: "الروسية", flag: "🇷🇺", direction: "ltr" },
+  "de": { id: "de.bubenheim", name: "Deutsch (Bubenheim & Elyas)", language: "الألمانية", flag: "🇩🇪", direction: "ltr" },
+  "es": { id: "es.cortes", name: "Español (Julio Cortés)", language: "الإسبانية", flag: "🇪🇸", direction: "ltr" },
+  "fa": { id: "fa.makarem", name: "فارسی (مکارم شیرازی)", language: "الفارسية", flag: "🇮🇷", direction: "rtl" },
+  "bn": { id: "bn.bengali", name: "বাংলা (মুহিউদ্দীন খান)", language: "البنغالية", flag: "🇧🇩", direction: "ltr" },
+  "zh": { id: "zh.jian", name: "中文 (马坚 - Ma Jian)", language: "الصينية", flag: "🇨🇳", direction: "ltr" },
+  "hi": { id: "hi.farooq", name: "हिन्दी (फ़ारूक़ ख़ान)", language: "الهندية", flag: "🇮🇳", direction: "ltr" },
+  "ku": { id: "ku.asan", name: "کوردی (بورهان محەمەد ئەمین)", language: "الكردية", flag: "☀️", direction: "rtl" },
+  "it": { id: "it.piccardo", name: "Italiano (Hamza Piccardo)", language: "الإيطالية", flag: "🇮🇹", direction: "ltr" },
+  "pt": { id: "pt.elhayek", name: "Português (Samir El-Hayek)", language: "البرتغالية", flag: "🇵🇹", direction: "ltr" },
+  "bs": { id: "bs.korkut", name: "Bosanski (Besim Korkut)", language: "البوسنية", flag: "🇧🇦", direction: "ltr" },
+  "ms": { id: "ms.basmeih", name: "Bahasa Melayu (Abdullah Basmeih)", language: "الماليزية", flag: "🇲🇾", direction: "ltr" },
+  "sv": { id: "sv.bernstrom", name: "Svenska (Knut Bernström)", language: "السويدية", flag: "🇸🇪", direction: "ltr" }
 };
 
-export async function fetchSurah(surahNumber: number, translationEdition = "en.sahih"): Promise<SurahDetail> {
+export function getTranslationEditionId(key: string): string {
+  if (TRANSLATIONS_MAP[key]) {
+    return TRANSLATIONS_MAP[key].id;
+  }
+  return key || "en.sahih";
+}
+
+export async function fetchSurahTranslations(surahNumber: number, translationKey: string): Promise<Map<number, string>> {
+  const editionId = getTranslationEditionId(translationKey);
+  const translationsMap = new Map<number, string>();
+
+  try {
+    const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${editionId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.data && Array.isArray(data.data.ayahs)) {
+        for (const a of data.data.ayahs) {
+          translationsMap.set(a.numberInSurah, a.text);
+        }
+        return translationsMap;
+      }
+    }
+  } catch (e) {
+    console.warn("fetchSurahTranslations primary failed:", e);
+  }
+
+  // Fallback to en.sahih if secondary edition failed
+  if (editionId !== "en.sahih") {
+    try {
+      const fallbackRes = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/en.sahih`);
+      if (fallbackRes.ok) {
+        const data = await fallbackRes.json();
+        if (data && data.data && Array.isArray(data.data.ayahs)) {
+          for (const a of data.data.ayahs) {
+            translationsMap.set(a.numberInSurah, a.text);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("fetchSurahTranslations fallback failed:", err);
+    }
+  }
+
+  return translationsMap;
+}
+
+export async function fetchSurah(surahNumber: number, translationEdition = "en"): Promise<SurahDetail> {
   const meta = SURAHS_LIST.find((s) => s.number === surahNumber) || SURAHS_LIST[0];
+  const editionId = getTranslationEditionId(translationEdition);
 
   // Check LocalStorage cache first
-  const cacheKey = `${CACHE_PREFIX}${surahNumber}_${translationEdition}`;
+  const cacheKey = `${CACHE_PREFIX}${surahNumber}_${editionId}`;
   try {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (parsed && Array.isArray(parsed.ayahs) && parsed.ayahs.length > 0) {
+      if (parsed && Array.isArray(parsed.ayahs) && parsed.ayahs.length > 0 && parsed.ayahs[0].translation) {
         return parsed;
       }
     }
@@ -88,7 +135,7 @@ export async function fetchSurah(surahNumber: number, translationEdition = "en.s
     // Fetch Arabic Uthmani text and translation together
     const [arabicRes, transRes] = await Promise.allSettled([
       fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/quran-uthmani`),
-      fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${translationEdition}`)
+      fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${editionId}`)
     ]);
 
     let arabicData: any = null;
@@ -120,6 +167,19 @@ export async function fetchSurah(surahNumber: number, translationEdition = "en.s
       for (const a of transData.data.ayahs) {
         translationsMap.set(a.numberInSurah, a.text);
       }
+    } else if (editionId !== "en.sahih") {
+      // Try fallback to en.sahih
+      try {
+        const enFallback = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/en.sahih`);
+        if (enFallback.ok) {
+          const enJson = await enFallback.json();
+          if (enJson?.data?.ayahs) {
+            for (const a of enJson.data.ayahs) {
+              translationsMap.set(a.numberInSurah, a.text);
+            }
+          }
+        }
+      } catch (err) {}
     }
 
     const ayahs: Ayah[] = arabicData.data.ayahs.map((a: any) => {

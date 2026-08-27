@@ -27,6 +27,46 @@ function getGenAI(): GoogleGenAI | null {
   });
 }
 
+// Model fallback sequence to ensure 99.9% availability during demand spikes
+const CANDIDATE_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-3.7-flash",
+  "gemini-2.5-pro",
+  "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite",
+];
+
+async function generateContentWithFallback(
+  ai: GoogleGenAI,
+  options: {
+    contents: string;
+    config?: any;
+  }
+): Promise<string> {
+  let lastError: any = null;
+
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: options.contents,
+        config: options.config,
+      });
+
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (err: any) {
+      console.warn(`Model ${model} encountered error:`, err?.status || err?.message || err);
+      lastError = err;
+      // continue to next model on 503 / 429 / UNAVAILABLE / rate limit / transient spike
+      continue;
+    }
+  }
+
+  throw lastError || new Error("تعذر الاتصال بنماذج الذكاء الاصطناعي حالياً، يرجى المحاولة بعد لحظات.");
+}
+
 // Health check
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -79,8 +119,7 @@ app.post("/api/gemini/tadabbur", async (req, res) => {
       prompt = `قدم تدبراً وإضاءة حول الآية: ${ayahText} من سورة ${surahName} آية ${ayahNumber}.`;
     }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const text = await generateContentWithFallback(ai, {
       contents: prompt,
       config: {
         systemInstruction: "أنت مساعد قرآني إسلامي متخصص في علوم القرآن والتفسير والتدبر واللغة العربية والبلاغة. تلتزم بالمنهج الإسلامي الموثوق مع إيراد الشواهد والأدلة بلغة عربية فصيحة ومؤثرة.",
@@ -89,7 +128,7 @@ app.post("/api/gemini/tadabbur", async (req, res) => {
     });
 
     return res.json({
-      result: response.text || "عذراً، تعذر توليد التدبر في الوقت الحالي.",
+      result: text || "عذراً، تعذر توليد التدبر في الوقت الحالي.",
     });
   } catch (error: any) {
     console.error("Gemini Tadabbur error:", error);
@@ -132,8 +171,7 @@ app.post("/api/gemini/ask-quran", async (req, res) => {
     }
     userPrompt += `السؤال الحالي: ${question}`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const text = await generateContentWithFallback(ai, {
       contents: userPrompt,
       config: {
         systemInstruction,
@@ -142,7 +180,7 @@ app.post("/api/gemini/ask-quran", async (req, res) => {
     });
 
     return res.json({
-      answer: response.text || "عذراً، لم أتمكن من الحصول على إجابة.",
+      answer: text || "عذراً، لم أتمكن من الحصول على إجابة.",
     });
   } catch (error: any) {
     console.error("Gemini Ask Quran error:", error);

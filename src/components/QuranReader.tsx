@@ -21,10 +21,11 @@ import {
   Info,
   Eye,
   EyeOff,
-  GraduationCap
+  GraduationCap,
+  Globe
 } from "lucide-react";
 import { SurahDetail, Ayah, ReaderSettings, Bookmark as BookmarkType, Reciter } from "../types";
-import { fetchSurah, fetchTafseer, fetchMushafPage, TAFSEER_EDITIONS_MAP } from "../services/quranApi";
+import { fetchSurah, fetchSurahTranslations, fetchTafseer, fetchMushafPage, TAFSEER_EDITIONS_MAP, TRANSLATIONS_MAP } from "../services/quranApi";
 import { SURAHS_LIST } from "../data/surahsData";
 import { getAyahVocabulary, getWordMeaningsForAyah } from "../data/quranVocabulary";
 
@@ -90,6 +91,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
     }
   });
 
+  const [loadingTranslations, setLoadingTranslations] = useState(false);
   const ayahRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Load Surah
@@ -126,6 +128,40 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
       isMounted = false;
     };
   }, [surahNumber, readerSettings.translationLang]);
+
+  // Ensure translations are populated whenever showTranslation is active or translation language changes
+  useEffect(() => {
+    if (!readerSettings.showTranslation || !surahDetail || !surahDetail.ayahs || surahDetail.ayahs.length === 0) {
+      return;
+    }
+
+    const currentLangKey = readerSettings.translationLang || "en";
+    const hasTranslations = surahDetail.ayahs.some(
+      (a) => typeof a.translation === "string" && a.translation.trim().length > 0
+    );
+
+    if (!hasTranslations) {
+      setLoadingTranslations(true);
+      fetchSurahTranslations(surahNumber, currentLangKey)
+        .then((transMap) => {
+          if (transMap.size > 0) {
+            setSurahDetail((prev) => {
+              if (!prev) return null;
+              const updatedAyahs = prev.ayahs.map((a) => ({
+                ...a,
+                translation: transMap.get(a.numberInSurah) || a.translation || ""
+              }));
+              return { ...prev, ayahs: updatedAyahs };
+            });
+          }
+          setLoadingTranslations(false);
+        })
+        .catch((e) => {
+          console.warn("Failed to dynamically fetch translations:", e);
+          setLoadingTranslations(false);
+        });
+    }
+  }, [readerSettings.showTranslation, readerSettings.translationLang, surahNumber, surahDetail?.name]);
 
   // Load Mushaf Page if in Mushaf mode
   useEffect(() => {
@@ -622,9 +658,78 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
                   </div>
 
                   {/* Translation Line (if enabled) */}
-                  {readerSettings.showTranslation && ayah.translation && (
-                    <div className="mt-3 pt-3 border-t border-[#2D3748] text-stone-400 text-xs sm:text-sm font-sans text-left dir-ltr leading-relaxed">
-                      {ayah.translation}
+                  {readerSettings.showTranslation && (
+                    <div className="mt-3 pt-3 border-t border-[#2D3748]/80 bg-[#12161F]/60 p-3 border border-[#2D3748] transition-all">
+                      {(() => {
+                        const langKey = readerSettings.translationLang || "en";
+                        const transInfo = TRANSLATIONS_MAP[langKey] || TRANSLATIONS_MAP["en"];
+                        const isRtl = transInfo?.direction === "rtl";
+
+                        if (ayah.translation && ayah.translation.trim().length > 0) {
+                          return (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] text-[#C5A059]">
+                                <span className="font-mono flex items-center gap-1.5 font-bold">
+                                  <span>{transInfo?.flag || "🌍"}</span>
+                                  <span>{transInfo?.name || transInfo?.language || "English"}</span>
+                                </span>
+                                <span className="text-[10px] text-stone-500 font-mono">
+                                  {isRtl ? "RTL • ترجمة معتمدة" : "LTR • Certified Translation"}
+                                </span>
+                              </div>
+                              <p
+                                dir={isRtl ? "rtl" : "ltr"}
+                                className={`text-xs sm:text-sm text-stone-200 leading-relaxed ${
+                                  isRtl ? "text-right font-tajawal" : "text-left font-sans"
+                                }`}
+                              >
+                                {ayah.translation}
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        if (loadingTranslations) {
+                          return (
+                            <div className="flex items-center gap-2 text-xs text-stone-400 py-1 font-tajawal">
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#C5A059]" />
+                              <span>جارٍ تحميل الترجمة ({transInfo?.name || "المحددة"})...</span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex items-center justify-between text-xs text-stone-400 font-tajawal py-1">
+                            <span>لا تتوفر ترجمة مباشرة لهذه الآية حالياً.</span>
+                            <button
+                              onClick={() => {
+                                setLoadingTranslations(true);
+                                fetchSurahTranslations(surahNumber, langKey)
+                                  .then((transMap) => {
+                                    if (transMap.size > 0) {
+                                      setSurahDetail((prev) => {
+                                        if (!prev) return null;
+                                        return {
+                                          ...prev,
+                                          ayahs: prev.ayahs.map((a) => ({
+                                            ...a,
+                                            translation: transMap.get(a.numberInSurah) || a.translation || ""
+                                          }))
+                                        };
+                                      });
+                                    }
+                                    setLoadingTranslations(false);
+                                  })
+                                  .catch(() => setLoadingTranslations(false));
+                              }}
+                              className="text-[#C5A059] hover:underline flex items-center gap-1 cursor-pointer text-[11px]"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>إعادة التحميل</span>
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
