@@ -4,6 +4,7 @@ import { Navbar } from "./components/Navbar";
 import { BottomNavigation } from "./components/BottomNavigation";
 import { SurahIndex } from "./components/SurahIndex";
 import { QuranReader } from "./components/QuranReader";
+import { RecitersCollection } from "./components/RecitersCollection";
 import { AudioPlayerBar } from "./components/AudioPlayerBar";
 import { TadabburAIModal } from "./components/TadabburAIModal";
 import { PrayerTimesQibla } from "./components/PrayerTimesQibla";
@@ -11,6 +12,7 @@ import { AdhkarHisn } from "./components/AdhkarHisn";
 import { KhatmahTracker } from "./components/KhatmahTracker";
 import { SearchModal } from "./components/SearchModal";
 import { ReaderSettingsModal } from "./components/ReaderSettingsModal";
+import { LanguageTranslationModal } from "./components/LanguageTranslationModal";
 import { ApkInstallModal } from "./components/ApkInstallModal";
 import { ReaderSettings, Bookmark, KhatmahPlan, Reciter } from "./types";
 import { RECITERS_LIST, getAyahAudioUrl } from "./data/recitersData";
@@ -122,6 +124,7 @@ export const App: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTranslationsOpen, setIsTranslationsOpen] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState<boolean>(() => {
     const isStandalone =
       typeof window !== "undefined" &&
@@ -167,10 +170,8 @@ export const App: React.FC = () => {
     if (!currentSurahMeta) return;
 
     if (currentPlayingAyah.ayah < currentSurahMeta.numberOfAyahs) {
-      // Play next ayah in same surah
       playAyah(currentPlayingAyah.surah, currentPlayingAyah.ayah + 1);
     } else if (currentPlayingAyah.surah < 114) {
-      // Advance to next surah ayah 1
       setCurrentSurahNumber(currentPlayingAyah.surah + 1);
       playAyah(currentPlayingAyah.surah + 1, 1);
     } else {
@@ -291,6 +292,7 @@ export const App: React.FC = () => {
         openSearch={() => setIsSearchOpen(true)}
         openApkModal={() => setIsApkModalOpen(true)}
         openSettings={() => setIsSettingsOpen(true)}
+        openTranslations={() => setIsTranslationsOpen(true)}
         readerSettings={readerSettings}
         setReaderSettings={setReaderSettings}
         isPlayingAudio={isPlayingAudio}
@@ -373,13 +375,36 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* 3. Adhkar & Masbaha Tab */}
+        {/* 3. Reciters Collection Tab (مجموعة القراء) */}
+        {activeTab === "reciters" && (
+          <RecitersCollection
+            selectedReciter={selectedReciter}
+            onSelectReciter={(reciter) => {
+              setSelectedReciter(reciter);
+              if (currentPlayingAyah) {
+                playAyah(currentPlayingAyah.surah, currentPlayingAyah.ayah);
+              }
+            }}
+            onPlaySurahWithReciter={(surahNum, reciter) => {
+              setSelectedReciter(reciter);
+              setCurrentSurahNumber(surahNum);
+              setActiveTab("reader");
+              playAyah(surahNum, 1);
+            }}
+            onOpenQuranReader={(surahNum) => {
+              setCurrentSurahNumber(surahNum);
+              setActiveTab("reader");
+            }}
+          />
+        )}
+
+        {/* 4. Adhkar & Masbaha Tab */}
         {activeTab === "adhkar" && <AdhkarHisn />}
 
-        {/* 4. Prayer Times & Qibla Tab */}
+        {/* 5. Prayer Times & Qibla Tab */}
         {activeTab === "prayers" && <PrayerTimesQibla />}
 
-        {/* 5. AI Tadabbur & Ask Quran Tab */}
+        {/* 6. AI Tadabbur & Ask Quran Tab */}
         {activeTab === "tadabbur" && (
           <TadabburAIModal
             initialSurahName={tadabburAyah?.surahName}
@@ -389,7 +414,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* 6. Khatmah Tracker Tab */}
+        {/* 7. Khatmah Tracker Tab */}
         {activeTab === "khatmah" && (
           <KhatmahTracker
             onOpenSurahByPage={handleOpenSurahByPage}
@@ -423,7 +448,7 @@ export const App: React.FC = () => {
         audioRef={audioRef}
       />
 
-      {/* Bottom APK Mobile Navigation */}
+      {/* Bottom Mobile Navigation */}
       <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Search Modal */}
@@ -443,6 +468,14 @@ export const App: React.FC = () => {
         setSettings={setReaderSettings}
       />
 
+      {/* Language Translations Modal */}
+      <LanguageTranslationModal
+        isOpen={isTranslationsOpen}
+        onClose={() => setIsTranslationsOpen(false)}
+        readerSettings={readerSettings}
+        setReaderSettings={setReaderSettings}
+      />
+
       {/* APK / PWA Install Guide Modal */}
       <ApkInstallModal
         isOpen={isApkModalOpen}
@@ -453,4 +486,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

@@ -99,10 +99,10 @@ app.post("/api/gemini/tadabbur", async (req, res) => {
   }
 });
 
-// Quran AI Assistant endpoint for broad questions and themes
+// Quran AI Assistant endpoint for broad questions, themes, and interactive multi-turn chat
 app.post("/api/gemini/ask-quran", async (req, res) => {
   try {
-    const { question, history = [] } = req.body;
+    const { question, history = [], category } = req.body;
 
     if (!question) {
       return res.status(400).json({ error: "Missing question" });
@@ -115,19 +115,26 @@ app.post("/api/gemini/ask-quran", async (req, res) => {
       });
     }
 
-    const systemInstruction = `أنت "المساعد القرآني الذكي" (Quran AI Companion).
-مهمتك مساعدة المسلمين والمهتمين بالقرآن الكريم في:
-- الإجابة عن مواضيع القرآن، قصص الأنبياء، الأحكام، الآيات المرتبطة بموضوع معين (مثل الصبر، الرزق، الشفاء، التوبة، البر، التقوى).
-- تزويد السائل بأسماء السور وأرقام الآيات الكريمة بدقة تامة.
-- الاستشهاد بنصوص الآيات بين علامتي تنصيص « » مع ذكر اسم السورة ورقم الآية.
-- تقديم نصائح إيمانية وتربوية من هدي القرآن الكريم والسنة النبوية الصحيحة.
-- الرد بلغة عربية فصيحة، واضحة، محترمة، ومرتبة باستخدام Markdown.`;
+    const systemInstruction = `أنت "المساعد القرآني الذكي والمجيب التفاعلي" (Interactive Quran AI Companion & Tadabbur Assistant).
+مهمتك مساعدة المستخدم في:
+1. الإجابة الدقيقة والموثقة عن أسئلة القرآن الكريم، أسباب النزول، التفسير، قصص الأنبياء، والإعجاز البلاغي والعلمي.
+2. استخراج الآيات الدالة على أي موضوع أو حاجة إنسانية (تفريج الهموم، الرزق، الشفاء، التوبة، الصبر، بر الوالدين).
+3. إيراد نصوص الآيات بدقة بين علامتي « » مع ذكر اسم السورة ورقم الآية دائماً.
+4. تقديم لفتات تدبرية عميقة ووقفات تربوية مع اقتراح أدعية قرآنية مناسبة.
+5. الرد بأسلوب إيماني رصين، فصيح، مرتب باستخدام عناوين فريدة ونقاط Markdown واضحة، مع اقتراح أسئلة تالية للمتابعة في نهاية الإجابة.`;
 
-    const prompt = `سؤال المستخدم: ${question}`;
+    let userPrompt = "";
+    if (category) {
+      userPrompt += `[التصنيف المحدد: ${category}]\n`;
+    }
+    if (history && history.length > 0) {
+      userPrompt += `سياق المحادثة السابقة:\n${history.map((h: any) => `${h.sender === "user" ? "السائل" : "المجيب"}: ${h.text}`).join("\n")}\n\n`;
+    }
+    userPrompt += `السؤال الحالي: ${question}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.7-flash",
-      contents: prompt,
+      contents: userPrompt,
       config: {
         systemInstruction,
         temperature: 0.6,
